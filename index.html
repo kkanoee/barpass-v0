@@ -1,0 +1,234 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>BarPass V0</title>
+    <link rel="stylesheet" href="./app.css" />
+  </head>
+  <body>
+    <div class="shell">
+      <header class="topbar">
+        <div>
+          <p class="eyebrow">BarPass V0</p>
+          <h1 id="venue-name">Le Comptoir Demo</h1>
+          <p id="pickup-summary" class="muted">Retrait unique · Pickup zone A</p>
+        </div>
+        <div class="topbar-meta">
+          <div class="badge success">V0 retrait unique</div>
+          <div class="badge">Paiement simulé</div>
+        </div>
+      </header>
+
+      <nav class="tabs" aria-label="Navigation principale">
+        <button class="tab active" data-view="client">Client</button>
+        <button class="tab" data-view="bar">Bar</button>
+        <button class="tab" data-view="pilotage">Pilotage</button>
+      </nav>
+
+      <main>
+        <section class="view active" id="view-client">
+          <div class="grid two-col">
+            <div class="panel stack-gap">
+              <div class="panel-head">
+                <div>
+                  <h2>Commander</h2>
+                  <p class="muted">Menu court, options simples, validation rapide.</p>
+                </div>
+                <div id="service-pill" class="badge">Service ouvert</div>
+              </div>
+
+              <div class="inline-info">
+                <div class="info-card">
+                  <span class="info-label">Point de retrait</span>
+                  <strong id="pickup-label">Pickup zone A</strong>
+                </div>
+                <div class="info-card">
+                  <span class="info-label">Attente moyenne</span>
+                  <strong id="avg-wait-label">6 min</strong>
+                </div>
+              </div>
+
+              <div id="menu-list" class="menu-list"></div>
+            </div>
+
+            <aside class="panel stack-gap sticky">
+              <div class="panel-head">
+                <div>
+                  <h2>Panier</h2>
+                  <p class="muted">Paiement simulé et entrée immédiate dans la file.</p>
+                </div>
+              </div>
+
+              <div id="cart-empty" class="empty-state">
+                Rien dans le panier.
+              </div>
+              <div id="cart-items" class="stack-gap"></div>
+              <div id="cart-summary" class="cart-summary hidden">
+                <div class="summary-row">
+                  <span>Sous-total</span>
+                  <strong id="cart-total">0,00 €</strong>
+                </div>
+                <label class="field">
+                  <span>Nom / alias</span>
+                  <input id="checkout-name" type="text" maxlength="40" placeholder="Ex. Kano" />
+                </label>
+                <label class="field">
+                  <span>Note de commande</span>
+                  <textarea id="checkout-note" rows="3" maxlength="120" placeholder="Ex. Sans glaçons sur le soft"></textarea>
+                </label>
+                <button id="checkout-button" class="primary-button">Payer et commander</button>
+              </div>
+            </aside>
+          </div>
+
+          <section class="panel stack-gap current-order-panel">
+            <div class="panel-head">
+              <div>
+                <h2>Suivi de commande</h2>
+                <p class="muted">Le client voit où en est sa commande et où la récupérer.</p>
+              </div>
+            </div>
+            <div id="current-order-empty" class="empty-state">
+              Aucune commande en cours sur cet appareil.
+            </div>
+            <div id="current-order" class="hidden"></div>
+          </section>
+        </section>
+
+        <section class="view" id="view-bar">
+          <div class="grid three-col compact-gap">
+            <div class="metric-card">
+              <span class="info-label">File active</span>
+              <strong id="metric-active">0</strong>
+            </div>
+            <div class="metric-card">
+              <span class="info-label">Prêtes à retirer</span>
+              <strong id="metric-ready">0</strong>
+            </div>
+            <div class="metric-card">
+              <span class="info-label">CA démo</span>
+              <strong id="metric-revenue">0,00 €</strong>
+            </div>
+          </div>
+
+          <div class="grid three-col">
+            <section class="panel stack-gap">
+              <div class="panel-head">
+                <div>
+                  <h2>À préparer</h2>
+                  <p class="muted">Commandes payées qui attendent un traitement.</p>
+                </div>
+              </div>
+              <div id="orders-queued" class="order-column"></div>
+            </section>
+
+            <section class="panel stack-gap">
+              <div class="panel-head">
+                <div>
+                  <h2>En préparation</h2>
+                  <p class="muted">Commandes actuellement traitées par le bar.</p>
+                </div>
+              </div>
+              <div id="orders-preparing" class="order-column"></div>
+            </section>
+
+            <section class="panel stack-gap">
+              <div class="panel-head">
+                <div>
+                  <h2>Prêtes</h2>
+                  <p class="muted">À appeler au point de retrait unique.</p>
+                </div>
+              </div>
+              <div id="orders-ready" class="order-column"></div>
+            </section>
+          </div>
+
+          <section class="panel stack-gap">
+            <div class="panel-head">
+              <div>
+                <h2>Historique récent</h2>
+                <p class="muted">Dernières commandes terminées pour garder la main sur le flux.</p>
+              </div>
+            </div>
+            <div id="orders-completed" class="order-column history-grid"></div>
+          </section>
+        </section>
+
+        <section class="view" id="view-pilotage">
+          <div class="grid two-col">
+            <section class="panel stack-gap">
+              <div class="panel-head">
+                <div>
+                  <h2>Pilotage lieu</h2>
+                  <p class="muted">Réglages de la démo et du point de retrait.</p>
+                </div>
+              </div>
+
+              <label class="field">
+                <span>Nom du lieu</span>
+                <input id="settings-venue-name" type="text" maxlength="60" />
+              </label>
+              <label class="field">
+                <span>Nom du point de retrait</span>
+                <input id="settings-pickup-point" type="text" maxlength="60" />
+              </label>
+              <label class="field">
+                <span>Temps moyen de préparation par commande (minutes)</span>
+                <input id="settings-prep-minutes" type="number" min="1" max="30" />
+              </label>
+              <label class="field inline-toggle">
+                <span>Service ouvert</span>
+                <input id="settings-service-open" type="checkbox" />
+              </label>
+              <button id="save-settings-button" class="primary-button">Enregistrer les réglages</button>
+            </section>
+
+            <section class="panel stack-gap">
+              <div class="panel-head">
+                <div>
+                  <h2>Carte et stock</h2>
+                  <p class="muted">Menu réduit et contrôle de disponibilité en direct.</p>
+                </div>
+              </div>
+              <div id="stock-list" class="stack-gap"></div>
+            </section>
+          </div>
+
+          <section class="panel stack-gap danger-zone">
+            <div class="panel-head">
+              <div>
+                <h2>Reset démo</h2>
+                <p class="muted">Réinitialise commandes, stock et configuration sur les valeurs V0.</p>
+              </div>
+            </div>
+            <button id="reset-demo-button" class="secondary-button danger">Réinitialiser la démo</button>
+          </section>
+        </section>
+      </main>
+    </div>
+
+    <template id="menu-item-template">
+      <article class="menu-card">
+        <div class="menu-card-top">
+          <div>
+            <h3 class="menu-title"></h3>
+            <p class="muted menu-description"></p>
+          </div>
+          <span class="badge menu-price"></span>
+        </div>
+        <div class="menu-meta">
+          <span class="badge subtle menu-category"></span>
+          <span class="badge subtle menu-stock"></span>
+        </div>
+        <label class="field option-field">
+          <span>Option</span>
+          <select class="menu-options"></select>
+        </label>
+        <button class="secondary-button add-to-cart-button">Ajouter</button>
+      </article>
+    </template>
+
+    <script src="./app.js" type="module"></script>
+  </body>
+</html>
