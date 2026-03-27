@@ -4,7 +4,7 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import { JSDOM } from 'jsdom';
 
-const root = '/home/manu/barpass-v0';
+const root = path.resolve(path.dirname(new URL(import.meta.url).pathname), '..');
 const html = await fs.readFile(path.join(root, 'index.html'), 'utf8');
 const script = await fs.readFile(path.join(root, 'app.js'), 'utf8');
 
