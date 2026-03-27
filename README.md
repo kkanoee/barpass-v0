@@ -10,6 +10,7 @@ Le repo couvre maintenant deux usages :
 
 - Repo : `https://github.com/kkanoee/barpass-v0`
 - Démo statique publiée : `https://kkanoee.github.io/barpass-v0/`
+- Alpha partagée locale : `npm run dev` puis `http://127.0.0.1:4173`
 
 ## Ce que contient le repo
 
@@ -135,8 +136,27 @@ Par rapport à la V0 purement locale, cette version ajoute :
 - pas de gestion réseau/infra de prod
 - pas encore de PWA installable
 
+## Déploiement public de l’alpha partagée
+
+Le repo est maintenant préparé pour un déploiement backend simple sur une plateforme type Render.
+
+Fichiers ajoutés pour ça :
+- `Dockerfile`
+- `render.yaml`
+
+### Option recommandée : Render
+
+1. Créer un compte Render
+2. Connecter le repo GitHub `kkanoee/barpass-v0`
+3. Déployer le service `barpass-shared-alpha`
+4. Vérifier que `/health` renvoie `ok: true`
+5. Partager ensuite l’URL publique du service
+
+Une fois le backend publié, les collègues pourront utiliser la vraie alpha partagée au lieu de la seule version GitHub Pages.
+
 ## Prochaines étapes logiques
 
+- déployer publiquement l’alpha partagée
 - ajouter une vraie persistance serveur
 - préparer une PWA installable
 - faire converger les écrans avec le Figma

@@ -1,0 +1,10 @@
+services:
+  - type: web
+    name: barpass-shared-alpha
+    runtime: docker
+    plan: free
+    autoDeploy: true
+    healthCheckPath: /health
+    envVars:
+      - key: PORT
+        value: 4173
