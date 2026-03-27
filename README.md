@@ -1,21 +1,27 @@
-# BarPass V0
+# BarPass V0 / Alpha partagée
 
-Prototype web statique de BarPass pour tester un flux de commande simple avec un seul point de retrait.
+Prototype web de BarPass pour tester un flux de commande simple avec un seul point de retrait.
 
-Le but de cette version n’est pas de simuler tout le produit final. Elle sert à valider le cœur du parcours :
-- un client consulte une carte courte
-- il ajoute des boissons au panier
-- il paie de façon simulée
-- sa commande entre dans une file claire
-- le bar la fait avancer jusqu’au retrait
+Le repo couvre maintenant deux usages :
+- une démo statique locale / GitHub Pages pour montrer le flux
+- une alpha partagée avec backend léger et synchro temps réel pour faire tester plusieurs postes en même temps
+
+## Liens utiles
+
+- Repo : `https://github.com/kkanoee/barpass-v0`
+- Démo statique publiée : `https://kkanoee.github.io/barpass-v0/`
 
 ## Ce que contient le repo
 
 - `index.html` → interface principale
 - `app.css` → styles de la démo
-- `app.js` → logique client, bar, pilotage et persistance locale
-- `tests/app.test.js` → tests jsdom du flux principal
+- `app.js` → logique front avec fallback local + mode partagé via API/WebSocket
+- `server.js` → backend léger Express + WebSocket pour l’alpha partagée
+- `shared/state.js` → logique métier et état partagé
+- `tests/app.test.js` → tests du mode local
+- `tests/server.test.js` → tests du backend partagé
 - `.github/workflows/deploy-pages.yml` → publication automatique GitHub Pages
+- `docs/next-steps-plan.md` → plan de progression du projet
 
 ## Vues disponibles
 
@@ -39,29 +45,26 @@ Le but de cette version n’est pas de simuler tout le produit final. Elle sert 
 - rupture / réactivation des produits
 - reset complet de la démo
 
-## Choix produit figés dans cette V0
+## Choix produit figés à ce stade
 
 - un seul point de retrait
 - pas d’authentification
 - pas de vrai PSP
-- pas de backend
 - pas de multi-bar
 - pas de multi-établissements
+- backend volontairement léger pour l’alpha
 
 ## Stack
 
 - HTML
 - CSS
 - JavaScript vanilla
-- `localStorage` pour la persistance locale
-- `BroadcastChannel` + événement `storage` pour la synchro inter-onglets
-- `node:test` + `jsdom` pour les tests
+- Express
+- WebSocket (`ws`)
+- `localStorage` pour le fallback local
+- `node:test` + `jsdom`
 
-## Lancer en local
-
-### Prérequis
-- Node.js 20+ recommandé
-- Python 3
+## Mode 1 — Démo locale simple
 
 ### Installation
 
@@ -69,18 +72,26 @@ Le but de cette version n’est pas de simuler tout le produit final. Elle sert 
 npm install
 ```
 
-### Lancer l’app
+### Lancer la version partagée locale
 
 ```bash
-python3 -m http.server 4173
+npm run dev
 ```
 
-Ouvrir ensuite :
+Puis ouvrir :
 - `http://127.0.0.1:4173`
 
 Conseil pour la démo :
 - un onglet = rôle client
 - un second onglet = rôle bar
+- un troisième onglet éventuel = pilotage
+
+## Mode 2 — Démo statique publiée
+
+La version GitHub Pages reste utile pour montrer le parcours sans backend partagé :
+- `https://kkanoee.github.io/barpass-v0/`
+
+Dans ce mode, l’application détecte l’absence de backend et retombe automatiquement en mode local.
 
 ## Lancer les tests
 
@@ -89,49 +100,45 @@ npm test
 ```
 
 Les tests couvrent actuellement :
-- création d’une commande depuis le client
-- progression du statut côté bar jusqu’à `completed`
-- réglages de pilotage et non-mutation des commandes déjà passées
+- création d’une commande depuis le client en mode local
+- progression du statut côté bar
+- pilotage et non-mutation des commandes déjà passées
+- endpoints du backend partagé
+- création de commande et modifications d’état côté serveur
 
-## Démo publiée
+## Ce que l’alpha partagée apporte
 
-Le repo est préparé pour être publié automatiquement avec GitHub Pages via GitHub Actions.
+Par rapport à la V0 purement locale, cette version ajoute :
+- un état serveur partagé
+- une file commune entre plusieurs postes
+- des changements de statut diffusés en temps réel
+- un backend minimal pour commencer les vrais tests multi-appareils
 
-URL attendue après activation du workflow :
-- `https://kkanoee.github.io/barpass-v0/`
+## Ce que vos collègues peuvent tester maintenant
 
-Si la page n’est pas encore disponible, il faut laisser GitHub finir le premier run du workflow `Deploy static site to GitHub Pages`.
+### En solo
+- ouvrir la version GitHub Pages
+- rejouer le flux client / bar dans le même navigateur
 
-## Ce que vos collègues peuvent tester
-
-### Parcours client
-- ajouter des produits
-- payer une commande simulée
-- vérifier le suivi de statut
-
-### Parcours bar
-- prendre une commande en file
-- la passer en préparation
-- la marquer prête
-- la marquer retirée
-
-### Pilotage
-- fermer le service
-- changer le point de retrait pour les futures commandes
-- simuler une rupture produit
-- reset la démo
+### En petit groupe
+- lancer `npm run dev` sur une machine
+- ouvrir l’URL depuis plusieurs appareils sur le même réseau si la machine hôte est accessible
+- passer des commandes depuis plusieurs clients
+- faire avancer la file côté bar
+- observer la cohérence temps réel
 
 ## Limites connues
 
-- les données sont locales au navigateur
-- le paiement est simulé
-- aucun stockage serveur
-- aucune gestion de session utilisateur
-- aucun temps réel réseau entre machines différentes
+- pas de persistance base de données : l’état repart de zéro au redémarrage serveur
+- paiement simulé uniquement
+- pas d’authentification ni rôles sécurisés
+- pas de gestion réseau/infra de prod
+- pas encore de PWA installable
 
 ## Prochaines étapes logiques
 
-- brancher un backend léger temps réel
-- introduire un vrai flux de paiement
-- faire converger le prototype avec le Figma
-- préparer une architecture utilisable par plusieurs collègues en même temps
+- ajouter une vraie persistance serveur
+- préparer une PWA installable
+- faire converger les écrans avec le Figma
+- tester le flux avec de vrais utilisateurs métier
+- décider ensuite si une app native est vraiment justifiée

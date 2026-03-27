@@ -21,6 +21,9 @@ async function boot() {
       }
       window.BroadcastChannel = FakeChannel;
       window.crypto = { randomUUID: () => 'test-order-id' };
+      window.fetch = async () => {
+        throw new Error('offline-test-mode');
+      };
     },
   });
 
@@ -63,17 +66,20 @@ test('bar can advance an order through workflow', async () => {
   let primary = document.querySelector('#orders-queued .primary-button');
   assert.ok(primary);
   primary.click();
+  await new Promise((resolve) => setTimeout(resolve, 10));
 
   let state = JSON.parse(localStorage.getItem('barpass-v0-state'));
   assert.equal(state.orders[0].status, 'preparing');
 
   primary = document.querySelector('#orders-preparing .primary-button');
   primary.click();
+  await new Promise((resolve) => setTimeout(resolve, 10));
   state = JSON.parse(localStorage.getItem('barpass-v0-state'));
   assert.equal(state.orders[0].status, 'ready');
 
   primary = document.querySelector('#orders-ready .primary-button');
   primary.click();
+  await new Promise((resolve) => setTimeout(resolve, 10));
   state = JSON.parse(localStorage.getItem('barpass-v0-state'));
   assert.equal(state.orders[0].status, 'completed');
   assert.match(document.getElementById('current-order').textContent, /Retirée/);

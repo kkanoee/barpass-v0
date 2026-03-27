@@ -1,8 +1,8 @@
 const STORAGE_KEY = 'barpass-v0-state';
 const LAST_ORDER_KEY = 'barpass-v0-last-order';
-const channel = typeof BroadcastChannel !== 'undefined' ? new BroadcastChannel('barpass-v0') : null;
-
+const LOCAL_CHANNEL_NAME = 'barpass-v0';
 const workflow = ['queued', 'preparing', 'ready', 'completed'];
+
 const workflowLabels = {
   queued: 'En file',
   preparing: 'En préparation',
@@ -10,66 +10,73 @@ const workflowLabels = {
   completed: 'Retirée',
 };
 
-const seedState = () => ({
-  venue: {
-    name: 'Le Comptoir Demo',
-    pickupPoint: 'Pickup zone A',
-    averagePrepMinutes: 6,
-    serviceOpen: true,
-  },
-  menu: [
-    {
-      id: 'beer-lager',
-      name: 'Lager pression',
-      description: 'Le choix le plus rapide à servir pendant le rush.',
-      category: 'Bière',
-      priceCents: 700,
-      available: true,
-      options: [
-        { id: '25cl', label: '25 cl', priceDeltaCents: 0 },
-        { id: '50cl', label: '50 cl', priceDeltaCents: 400 },
-      ],
+function createSeedState() {
+  return {
+    venue: {
+      name: 'Le Comptoir Demo',
+      pickupPoint: 'Pickup zone A',
+      averagePrepMinutes: 6,
+      serviceOpen: true,
     },
-    {
-      id: 'spritz',
-      name: 'Spritz',
-      description: 'Cocktail simple à fort débit, pensé V0.',
-      category: 'Cocktail',
-      priceCents: 1100,
-      available: true,
-      options: [
-        { id: 'classic', label: 'Recette classique', priceDeltaCents: 0 },
-        { id: 'light-ice', label: 'Moins de glace', priceDeltaCents: 0 },
-      ],
-    },
-    {
-      id: 'gin-tonic',
-      name: 'Gin tonic',
-      description: 'Option courte, compatible avec un bar à cadence élevée.',
-      category: 'Cocktail',
-      priceCents: 1200,
-      available: true,
-      options: [
-        { id: 'classic', label: 'Classique', priceDeltaCents: 0 },
-        { id: 'lemon', label: 'Twist citron', priceDeltaCents: 0 },
-      ],
-    },
-    {
-      id: 'soft-cola',
-      name: 'Soft cola',
-      description: 'Commande rapide, utile pour garder le flux fluide.',
-      category: 'Soft',
-      priceCents: 450,
-      available: true,
-      options: [
-        { id: '33cl', label: '33 cl', priceDeltaCents: 0 },
-        { id: 'zero', label: 'Version zero', priceDeltaCents: 0 },
-      ],
-    },
-  ],
-  orders: [],
-  lastSequence: 0,
-});
+    menu: [
+      {
+        id: 'beer-lager',
+        name: 'Lager pression',
+        description: 'Le choix le plus rapide à servir pendant le rush.',
+        category: 'Bière',
+        priceCents: 700,
+        available: true,
+        options: [
+          { id: '25cl', label: '25 cl', priceDeltaCents: 0 },
+          { id: '50cl', label: '50 cl', priceDeltaCents: 400 },
+        ],
+      },
+      {
+        id: 'spritz',
+        name: 'Spritz',
+        description: 'Cocktail simple à fort débit, pensé V0.',
+        category: 'Cocktail',
+        priceCents: 1100,
+        available: true,
+        options: [
+          { id: 'classic', label: 'Recette classique', priceDeltaCents: 0 },
+          { id: 'light-ice', label: 'Moins de glace', priceDeltaCents: 0 },
+        ],
+      },
+      {
+        id: 'gin-tonic',
+        name: 'Gin tonic',
+        description: 'Option courte, compatible avec un bar à cadence élevée.',
+        category: 'Cocktail',
+        priceCents: 1200,
+        available: true,
+        options: [
+          { id: 'classic', label: 'Classique', priceDeltaCents: 0 },
+          { id: 'lemon', label: 'Twist citron', priceDeltaCents: 0 },
+        ],
+      },
+      {
+        id: 'soft-cola',
+        name: 'Soft cola',
+        description: 'Commande rapide, utile pour garder le flux fluide.',
+        category: 'Soft',
+        priceCents: 450,
+        available: true,
+        options: [
+          { id: '33cl', label: '33 cl', priceDeltaCents: 0 },
+          { id: 'zero', label: 'Version zero', priceDeltaCents: 0 },
+        ],
+      },
+    ],
+    orders: [],
+    lastSequence: 0,
+  };
+}
+
+function estimateWaitMinutes(currentState) {
+  const queueDepth = currentState.orders.filter((order) => ['queued', 'preparing'].includes(order.status)).length;
+  return Math.max(currentState.venue.averagePrepMinutes, Math.round((queueDepth + 1) * (currentState.venue.averagePrepMinutes / 2)));
+}
 
 const ui = {
   cart: [],
@@ -77,53 +84,13 @@ const ui = {
   toastTimer: null,
 };
 
-let state = loadState();
+const runtime = {
+  mode: 'local',
+  channel: typeof BroadcastChannel !== 'undefined' ? new BroadcastChannel(LOCAL_CHANNEL_NAME) : null,
+  socket: null,
+};
 
-function loadState() {
-  const raw = localStorage.getItem(STORAGE_KEY);
-  if (!raw) return seedState();
-  try {
-    const parsed = JSON.parse(raw);
-    return {
-      ...seedState(),
-      ...parsed,
-      venue: { ...seedState().venue, ...(parsed.venue || {}) },
-      menu: Array.isArray(parsed.menu) ? parsed.menu : seedState().menu,
-      orders: Array.isArray(parsed.orders) ? parsed.orders : [],
-      lastSequence: Number.isFinite(parsed.lastSequence) ? parsed.lastSequence : 0,
-    };
-  } catch {
-    return seedState();
-  }
-}
-
-function saveState(announce = true) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-  if (announce && channel) channel.postMessage({ type: 'state-updated', state });
-}
-
-function syncState(nextState) {
-  state = nextState;
-  render();
-}
-
-window.addEventListener('storage', (event) => {
-  if (event.key === STORAGE_KEY && event.newValue) {
-    try {
-      syncState(JSON.parse(event.newValue));
-    } catch {
-      // ignore malformed sync payloads
-    }
-  }
-});
-
-if (channel) {
-  channel.addEventListener('message', (event) => {
-    if (event.data?.type === 'state-updated') {
-      syncState(event.data.state);
-    }
-  });
-}
+let state = createSeedState();
 
 const els = {
   venueName: document.getElementById('venue-name'),
@@ -158,8 +125,13 @@ const els = {
   menuItemTemplate: document.getElementById('menu-item-template'),
 };
 
-bindEvents();
-render();
+bootstrap();
+
+async function bootstrap() {
+  bindEvents();
+  await initializeState();
+  render();
+}
 
 function bindEvents() {
   document.querySelectorAll('.tab').forEach((button) => {
@@ -169,6 +141,86 @@ function bindEvents() {
   els.checkoutButton.addEventListener('click', checkout);
   els.saveSettingsButton.addEventListener('click', saveSettings);
   els.resetDemoButton.addEventListener('click', resetDemo);
+
+  window.addEventListener('storage', (event) => {
+    if (runtime.mode !== 'local') return;
+    if (event.key === STORAGE_KEY && event.newValue) {
+      try {
+        syncState(JSON.parse(event.newValue));
+      } catch {
+        // ignore malformed local sync payloads
+      }
+    }
+  });
+
+  runtime.channel?.addEventListener('message', (event) => {
+    if (runtime.mode !== 'local') return;
+    if (event.data?.type === 'state-updated') {
+      syncState(event.data.state);
+    }
+  });
+}
+
+async function initializeState() {
+  try {
+    const remoteState = await fetchJson('/api/state', { method: 'GET' });
+    runtime.mode = 'remote';
+    syncState(remoteState);
+    connectRealtime();
+    showToast('Mode partagé activé.');
+  } catch {
+    runtime.mode = 'local';
+    syncState(loadLocalState());
+  }
+}
+
+function connectRealtime() {
+  try {
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    runtime.socket = new WebSocket(`${protocol}//${window.location.host}/ws`);
+    runtime.socket.addEventListener('message', (event) => {
+      try {
+        const payload = JSON.parse(event.data);
+        if (payload.type === 'state' && payload.state) {
+          syncState(payload.state);
+        }
+      } catch {
+        // ignore malformed websocket frames
+      }
+    });
+  } catch {
+    // remote mode still works with polling-less fetch mutations
+  }
+}
+
+function loadLocalState() {
+  const raw = localStorage.getItem(STORAGE_KEY);
+  if (!raw) return createSeedState();
+  try {
+    const parsed = JSON.parse(raw);
+    return {
+      ...createSeedState(),
+      ...parsed,
+      venue: { ...createSeedState().venue, ...(parsed.venue || {}) },
+      menu: Array.isArray(parsed.menu) ? parsed.menu : createSeedState().menu,
+      orders: Array.isArray(parsed.orders) ? parsed.orders : [],
+      lastSequence: Number.isFinite(parsed.lastSequence) ? parsed.lastSequence : 0,
+    };
+  } catch {
+    return createSeedState();
+  }
+}
+
+function saveLocalState(announce = true) {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  if (announce) {
+    runtime.channel?.postMessage({ type: 'state-updated', state });
+  }
+}
+
+function syncState(nextState) {
+  state = nextState;
+  render();
 }
 
 function setView(view) {
@@ -191,11 +243,13 @@ function render() {
 }
 
 function renderVenue() {
+  const wait = estimateWaitMinutes(state);
   els.venueName.textContent = state.venue.name;
   els.pickupSummary.textContent = `Retrait unique · ${state.venue.pickupPoint}`;
   els.pickupLabel.textContent = state.venue.pickupPoint;
-  els.avgWaitLabel.textContent = `${estimateWaitMinutes()} min`;
-  els.servicePill.textContent = state.venue.serviceOpen ? 'Service ouvert' : 'Service fermé';
+  els.avgWaitLabel.textContent = `${wait} min`;
+  const modeLabel = runtime.mode === 'remote' ? 'Alpha partagée' : 'Démo locale';
+  els.servicePill.textContent = `${state.venue.serviceOpen ? 'Service ouvert' : 'Service fermé'} · ${modeLabel}`;
   els.servicePill.className = `badge ${state.venue.serviceOpen ? 'success' : 'warning'}`;
 }
 
@@ -244,11 +298,7 @@ function addToCart(itemId, optionId) {
   if (existing) {
     existing.quantity += 1;
   } else {
-    ui.cart.push({
-      itemId: item.id,
-      optionId: option.id,
-      quantity: 1,
-    });
+    ui.cart.push({ itemId: item.id, optionId: option.id, quantity: 1 });
   }
 
   renderCart();
@@ -294,7 +344,7 @@ function renderCart() {
   els.cartTotal.textContent = formatEuros(cartTotalCents());
 }
 
-function checkout() {
+async function checkout() {
   if (!ui.cart.length) {
     showToast('Le panier est vide.');
     return;
@@ -307,14 +357,41 @@ function checkout() {
 
   const customerName = els.checkoutName.value.trim() || 'Client';
   const note = els.checkoutNote.value.trim();
+
+  try {
+    let order;
+    if (runtime.mode === 'remote') {
+      const payload = await fetchJson('/api/orders', {
+        method: 'POST',
+        body: JSON.stringify({ customerName, note, cart: ui.cart }),
+      });
+      order = payload.order;
+      syncState(payload.state);
+    } else {
+      const payload = createLocalOrder(customerName, note);
+      order = payload.order;
+      syncState(payload.state);
+      saveLocalState();
+    }
+
+    localStorage.setItem(LAST_ORDER_KEY, order.id);
+    ui.cart = [];
+    els.checkoutName.value = customerName;
+    els.checkoutNote.value = '';
+    render();
+    showToast(`Commande #${order.sequence} payée. Retrait à ${order.pickupPoint}.`);
+  } catch (error) {
+    showToast(error.message || 'Impossible de créer la commande.');
+  }
+}
+
+function createLocalOrder(customerName, note) {
   const unavailable = ui.cart.some((entry) => {
     const item = state.menu.find((menuItem) => menuItem.id === entry.itemId);
     return !item?.available;
   });
-
   if (unavailable) {
-    showToast('Une boisson du panier n’est plus disponible.');
-    return;
+    throw new Error('Une boisson du panier n’est plus disponible.');
   }
 
   state.lastSequence += 1;
@@ -328,7 +405,7 @@ function checkout() {
     note,
     createdAt: Date.now(),
     updatedAt: Date.now(),
-    estimateMinutes: estimateWaitMinutes() + state.venue.averagePrepMinutes,
+    estimateMinutes: estimateWaitMinutes(state) + state.venue.averagePrepMinutes,
     totalCents: cartTotalCents(),
     items: ui.cart.map((entry) => {
       const menuItem = state.menu.find((item) => item.id === entry.itemId);
@@ -343,16 +420,8 @@ function checkout() {
       };
     }),
   };
-
   state.orders.unshift(order);
-  localStorage.setItem(LAST_ORDER_KEY, order.id);
-  saveState();
-
-  ui.cart = [];
-  els.checkoutName.value = customerName;
-  els.checkoutNote.value = '';
-  render();
-  showToast(`Commande #${sequence} payée. Retrait à ${state.venue.pickupPoint}.`);
+  return { order, state };
 }
 
 function renderCurrentOrder() {
@@ -468,7 +537,7 @@ function renderOrderColumn(container, orders, actionLabel) {
       const nextButton = document.createElement('button');
       nextButton.className = 'primary-button';
       nextButton.textContent = actionLabel;
-      nextButton.addEventListener('click', () => advanceOrder(order.id));
+      nextButton.addEventListener('click', () => updateOrderStatus(order.id, 'next'));
       actions.appendChild(nextButton);
 
       if (order.status !== 'completed') {
@@ -476,7 +545,7 @@ function renderOrderColumn(container, orders, actionLabel) {
         cancelButton.className = 'secondary-button';
         cancelButton.textContent = 'Revenir en file';
         cancelButton.disabled = order.status === 'queued';
-        cancelButton.addEventListener('click', () => regressOrder(order.id));
+        cancelButton.addEventListener('click', () => updateOrderStatus(order.id, 'previous'));
         actions.appendChild(cancelButton);
       }
 
@@ -487,28 +556,36 @@ function renderOrderColumn(container, orders, actionLabel) {
   });
 }
 
-function advanceOrder(orderId) {
-  const order = state.orders.find((entry) => entry.id === orderId);
-  if (!order) return;
-  const index = workflow.indexOf(order.status);
-  if (index === -1 || index >= workflow.length - 1) return;
-  order.status = workflow[index + 1];
-  order.updatedAt = Date.now();
-  saveState();
-  render();
-  showToast(`Commande #${order.sequence} → ${workflowLabels[order.status]}.`);
-}
-
-function regressOrder(orderId) {
-  const order = state.orders.find((entry) => entry.id === orderId);
-  if (!order) return;
-  const index = workflow.indexOf(order.status);
-  if (index <= 0) return;
-  order.status = workflow[index - 1];
-  order.updatedAt = Date.now();
-  saveState();
-  render();
-  showToast(`Commande #${order.sequence} renvoyée en ${workflowLabels[order.status].toLowerCase()}.`);
+async function updateOrderStatus(orderId, action) {
+  try {
+    let order;
+    if (runtime.mode === 'remote') {
+      const payload = await fetchJson(`/api/orders/${orderId}/status`, {
+        method: 'PATCH',
+        body: JSON.stringify({ action }),
+      });
+      order = payload.order;
+      syncState(payload.state);
+    } else {
+      const orderRef = state.orders.find((entry) => entry.id === orderId);
+      if (!orderRef) return;
+      const index = workflow.indexOf(orderRef.status);
+      if (action === 'next' && index < workflow.length - 1) {
+        orderRef.status = workflow[index + 1];
+      } else if (action === 'previous' && index > 0) {
+        orderRef.status = workflow[index - 1];
+      } else {
+        return;
+      }
+      orderRef.updatedAt = Date.now();
+      order = orderRef;
+      saveLocalState();
+      render();
+    }
+    showToast(`Commande #${order.sequence} → ${workflowLabels[order.status]}.`);
+  } catch (error) {
+    showToast(error.message || 'Impossible de changer le statut.');
+  }
 }
 
 function renderPilotage() {
@@ -536,33 +613,70 @@ function renderPilotage() {
   });
 }
 
-function saveSettings() {
-  state.venue.name = els.settingsVenueName.value.trim() || seedState().venue.name;
-  state.venue.pickupPoint = els.settingsPickupPoint.value.trim() || seedState().venue.pickupPoint;
-  state.venue.averagePrepMinutes = clampNumber(Number(els.settingsPrepMinutes.value), 1, 30, seedState().venue.averagePrepMinutes);
-  state.venue.serviceOpen = els.settingsServiceOpen.checked;
+async function saveSettings() {
+  const payload = {
+    name: els.settingsVenueName.value.trim() || createSeedState().venue.name,
+    pickupPoint: els.settingsPickupPoint.value.trim() || createSeedState().venue.pickupPoint,
+    averagePrepMinutes: clampNumber(Number(els.settingsPrepMinutes.value), 1, 30, createSeedState().venue.averagePrepMinutes),
+    serviceOpen: els.settingsServiceOpen.checked,
+  };
 
-  saveState();
-  render();
-  showToast('Réglages enregistrés.');
+  try {
+    if (runtime.mode === 'remote') {
+      const response = await fetchJson('/api/settings', {
+        method: 'PATCH',
+        body: JSON.stringify(payload),
+      });
+      syncState(response.state);
+    } else {
+      state.venue = { ...state.venue, ...payload };
+      saveLocalState();
+      render();
+    }
+    showToast('Réglages enregistrés.');
+  } catch (error) {
+    showToast(error.message || 'Impossible d’enregistrer les réglages.');
+  }
 }
 
-function toggleAvailability(itemId) {
-  const item = state.menu.find((entry) => entry.id === itemId);
-  if (!item) return;
-  item.available = !item.available;
-  saveState();
-  render();
-  showToast(`${item.name} ${item.available ? 'réactivé' : 'passé en rupture'}.`);
+async function toggleAvailability(itemId) {
+  try {
+    if (runtime.mode === 'remote') {
+      const response = await fetchJson(`/api/menu/${itemId}/toggle-availability`, {
+        method: 'POST',
+      });
+      syncState(response.state);
+    } else {
+      const item = state.menu.find((entry) => entry.id === itemId);
+      if (!item) return;
+      item.available = !item.available;
+      saveLocalState();
+      render();
+    }
+    const item = state.menu.find((entry) => entry.id === itemId);
+    showToast(`${item.name} ${item.available ? 'réactivé' : 'passé en rupture'}.`);
+  } catch (error) {
+    showToast(error.message || 'Impossible de modifier la disponibilité.');
+  }
 }
 
-function resetDemo() {
-  state = seedState();
+async function resetDemo() {
   ui.cart = [];
   localStorage.removeItem(LAST_ORDER_KEY);
-  saveState();
-  render();
-  showToast('Démo BarPass réinitialisée.');
+
+  try {
+    if (runtime.mode === 'remote') {
+      const response = await fetchJson('/api/reset', { method: 'POST' });
+      syncState(response.state);
+    } else {
+      state = createSeedState();
+      saveLocalState();
+      render();
+    }
+    showToast(runtime.mode === 'remote' ? 'Alpha partagée réinitialisée.' : 'Démo BarPass réinitialisée.');
+  } catch (error) {
+    showToast(error.message || 'Impossible de réinitialiser.');
+  }
 }
 
 function lineTotal(entry, menuItem, option) {
@@ -578,16 +692,37 @@ function cartTotalCents() {
   }, 0);
 }
 
-function estimateWaitMinutes() {
-  const queueDepth = state.orders.filter((order) => ['queued', 'preparing'].includes(order.status)).length;
-  return Math.max(state.venue.averagePrepMinutes, Math.round((queueDepth + 1) * (state.venue.averagePrepMinutes / 2)));
-}
-
 function timelineDescription(step, order) {
   if (step === 'queued') return 'Commande enregistrée et payée.';
   if (step === 'preparing') return 'Le bar traite la commande.';
   if (step === 'ready') return `Retrait à ${order.pickupPoint}.`;
   return 'Commande retirée au comptoir.';
+}
+
+async function fetchJson(url, options = {}) {
+  const response = await fetch(url, {
+    headers: { 'Content-Type': 'application/json', ...(options.headers || {}) },
+    ...options,
+  });
+  const text = await response.text();
+  const payload = text ? JSON.parse(text) : {};
+  if (!response.ok) {
+    throw new Error(mapApiError(payload.error || 'REQUEST_FAILED'));
+  }
+  return payload;
+}
+
+function mapApiError(code) {
+  const messages = {
+    EMPTY_CART: 'Le panier est vide.',
+    SERVICE_CLOSED: 'Le service est fermé.',
+    ITEM_UNAVAILABLE: 'Une boisson du panier n’est plus disponible.',
+    INVALID_OPTION: 'Option de produit invalide.',
+    INVALID_WORKFLOW_TRANSITION: 'Transition de statut invalide.',
+    ORDER_NOT_FOUND: 'Commande introuvable.',
+    ITEM_NOT_FOUND: 'Produit introuvable.',
+  };
+  return messages[code] || code;
 }
 
 function formatEuros(cents) {
@@ -599,7 +734,7 @@ function formatTime(timestamp) {
 }
 
 function escapeHtml(value) {
-  return value
+  return String(value)
     .replaceAll('&', '&amp;')
     .replaceAll('<', '&lt;')
     .replaceAll('>', '&gt;')
