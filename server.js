@@ -8,11 +8,11 @@ import { createStore } from './shared/state.js';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-export function createAppServer() {
+export function createAppServer({ persistencePath } = {}) {
   const app = express();
   const httpServer = createServer(app);
   const wss = new WebSocketServer({ server: httpServer, path: '/ws' });
-  const store = createStore();
+  const store = createStore(undefined, { persistencePath });
 
   app.use(express.json());
 
@@ -104,8 +104,8 @@ export function createAppServer() {
   return { app, httpServer, wss, store };
 }
 
-export function startServer({ port = 4173 } = {}) {
-  const { httpServer } = createAppServer();
+export function startServer({ port = 4173, persistencePath = process.env.BARPASS_PERSISTENCE_PATH } = {}) {
+  const { httpServer } = createAppServer({ persistencePath });
   return new Promise((resolve) => {
     httpServer.listen(port, () => resolve(httpServer));
   });

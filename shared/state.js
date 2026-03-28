@@ -1,3 +1,6 @@
+import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
+import path from 'node:path';
+
 export const workflow = ['queued', 'preparing', 'ready', 'completed'];
 
 export function createSeedState() {
@@ -72,26 +75,43 @@ export function cloneState(state) {
   return JSON.parse(JSON.stringify(state));
 }
 
-export function createStore(initialState = createSeedState()) {
-  let state = cloneState(initialState);
+export function createStore(initialState = createSeedState(), options = {}) {
+  const persistencePath = options.persistencePath || null;
+  let state = loadInitialState(initialState, persistencePath);
 
   function getState() {
     return cloneState(state);
   }
 
+  function applyMutation(mutator) {
+    const previousState = cloneState(state);
+    const result = mutator();
+    try {
+      persistState(state, persistencePath);
+      return result;
+    } catch (error) {
+      state = previousState;
+      throw error;
+    }
+  }
+
   function reset() {
-    state = createSeedState();
-    return getState();
+    return applyMutation(() => {
+      state = createSeedState();
+      return getState();
+    });
   }
 
   function updateSettings(patch) {
-    state.venue.name = sanitizeText(patch.name, 60) || state.venue.name;
-    state.venue.pickupPoint = sanitizeText(patch.pickupPoint, 60) || state.venue.pickupPoint;
-    state.venue.averagePrepMinutes = clampNumber(Number(patch.averagePrepMinutes), 1, 30, state.venue.averagePrepMinutes);
-    if (typeof patch.serviceOpen === 'boolean') {
-      state.venue.serviceOpen = patch.serviceOpen;
-    }
-    return getState();
+    return applyMutation(() => {
+      state.venue.name = sanitizeText(patch.name, 60) || state.venue.name;
+      state.venue.pickupPoint = sanitizeText(patch.pickupPoint, 60) || state.venue.pickupPoint;
+      state.venue.averagePrepMinutes = clampNumber(Number(patch.averagePrepMinutes), 1, 30, state.venue.averagePrepMinutes);
+      if (typeof patch.serviceOpen === 'boolean') {
+        state.venue.serviceOpen = patch.serviceOpen;
+      }
+      return getState();
+    });
   }
 
   function toggleAvailability(itemId) {
@@ -99,8 +119,10 @@ export function createStore(initialState = createSeedState()) {
     if (!item) {
       throw new Error('ITEM_NOT_FOUND');
     }
-    item.available = !item.available;
-    return getState();
+    return applyMutation(() => {
+      item.available = !item.available;
+      return getState();
+    });
   }
 
   function createOrder({ customerName, note, cart }) {
@@ -152,8 +174,10 @@ export function createStore(initialState = createSeedState()) {
       })),
     };
 
-    state.orders.unshift(order);
-    return { order: cloneState(order), state: getState() };
+    return applyMutation(() => {
+      state.orders.unshift(order);
+      return { order: cloneState(order), state: getState() };
+    });
   }
 
   function advanceOrder(orderId) {
@@ -162,9 +186,11 @@ export function createStore(initialState = createSeedState()) {
     if (index === -1 || index >= workflow.length - 1) {
       throw new Error('INVALID_WORKFLOW_TRANSITION');
     }
-    order.status = workflow[index + 1];
-    order.updatedAt = Date.now();
-    return { order: cloneState(order), state: getState() };
+    return applyMutation(() => {
+      order.status = workflow[index + 1];
+      order.updatedAt = Date.now();
+      return { order: cloneState(order), state: getState() };
+    });
   }
 
   function regressOrder(orderId) {
@@ -173,9 +199,11 @@ export function createStore(initialState = createSeedState()) {
     if (index <= 0) {
       throw new Error('INVALID_WORKFLOW_TRANSITION');
     }
-    order.status = workflow[index - 1];
-    order.updatedAt = Date.now();
-    return { order: cloneState(order), state: getState() };
+    return applyMutation(() => {
+      order.status = workflow[index - 1];
+      order.updatedAt = Date.now();
+      return { order: cloneState(order), state: getState() };
+    });
   }
 
   function requireOrder(orderId) {
@@ -195,6 +223,38 @@ export function createStore(initialState = createSeedState()) {
     advanceOrder,
     regressOrder,
   };
+}
+
+function loadInitialState(initialState, persistencePath) {
+  const fallbackState = cloneState(initialState);
+  if (!persistencePath || !existsSync(persistencePath)) {
+    return fallbackState;
+  }
+
+  try {
+    const persisted = JSON.parse(readFileSync(persistencePath, 'utf8'));
+    return {
+      ...fallbackState,
+      ...persisted,
+      venue: { ...fallbackState.venue, ...(persisted.venue || {}) },
+      menu: Array.isArray(persisted.menu) ? persisted.menu : fallbackState.menu,
+      orders: Array.isArray(persisted.orders) ? persisted.orders : fallbackState.orders,
+      lastSequence: Number.isFinite(persisted.lastSequence) ? persisted.lastSequence : fallbackState.lastSequence,
+    };
+  } catch {
+    return fallbackState;
+  }
+}
+
+function persistState(state, persistencePath) {
+  if (!persistencePath) {
+    return;
+  }
+
+  mkdirSync(path.dirname(persistencePath), { recursive: true });
+  const tempPath = `${persistencePath}.tmp`;
+  writeFileSync(tempPath, JSON.stringify(state, null, 2));
+  renameSync(tempPath, persistencePath);
 }
 
 function clampNumber(value, min, max, fallback) {

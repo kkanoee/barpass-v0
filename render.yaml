@@ -8,3 +8,7 @@ services:
     envVars:
       - key: PORT
         value: 4173
+
+# Note:
+# BARPASS_PERSISTENCE_PATH can be added at deploy time for hosts with durable storage.
+# Do not point it at ephemeral container storage if you expect persistence across redeploys.

@@ -128,9 +128,27 @@ Par rapport à la V0 purement locale, cette version ajoute :
 - faire avancer la file côté bar
 - observer la cohérence temps réel
 
+## Persistance minimale de l’alpha partagée
+
+Le backend partagé peut maintenant conserver l’état entre deux redémarrages si une variable d’environnement est fournie :
+
+```bash
+BARPASS_PERSISTENCE_PATH=/chemin/vers/state.json
+```
+
+Exemple local :
+
+```bash
+BARPASS_PERSISTENCE_PATH=./data/state.json npm run dev
+```
+
+Sans cette variable, le comportement reste identique à avant : mémoire volatile uniquement.
+
+Important : cette persistance repose sur un simple fichier local. Elle fonctionne bien en local ou sur un hébergement avec stockage durable monté explicitement, mais elle ne doit pas être confondue avec une vraie persistance de prod ni avec une simple écriture sur un filesystem éphémère de conteneur.
+
 ## Limites connues
 
-- pas de persistance base de données : l’état repart de zéro au redémarrage serveur
+- persistance locale simple uniquement, pas encore de vraie base multi-instance
 - paiement simulé uniquement
 - pas d’authentification ni rôles sécurisés
 - pas de gestion réseau/infra de prod

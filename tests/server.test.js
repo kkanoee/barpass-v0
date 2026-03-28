@@ -1,9 +1,12 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import os from 'node:os';
+import path from 'node:path';
+import { mkdtemp } from 'node:fs/promises';
 import { createAppServer } from '../server.js';
 
-async function bootServer() {
-  const { httpServer } = createAppServer();
+async function bootServer(options = {}) {
+  const { httpServer } = createAppServer(options);
   await new Promise((resolve) => httpServer.listen(0, resolve));
   const port = httpServer.address().port;
   const baseUrl = `http://127.0.0.1:${port}`;
@@ -108,5 +111,47 @@ test('shared alpha protects API shape and rejects invalid options', async () => 
     assert.equal(payload.error, 'API_ROUTE_NOT_FOUND');
   } finally {
     await server.close();
+  }
+});
+
+test('shared alpha persists state across server restarts when persistence is enabled', async () => {
+  const tempDir = await mkdtemp(path.join(os.tmpdir(), 'barpass-persist-'));
+  const persistencePath = path.join(tempDir, 'state.json');
+
+  const firstServer = await bootServer({ persistencePath });
+  try {
+    let response = await fetch(`${firstServer.baseUrl}/api/orders`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        customerName: 'Persist',
+        note: 'tester restart',
+        cart: [{ itemId: 'gin-tonic', optionId: 'classic', quantity: 1 }],
+      }),
+    });
+    assert.equal(response.status, 201);
+
+    response = await fetch(`${firstServer.baseUrl}/api/settings`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ pickupPoint: 'Pickup zone C', averagePrepMinutes: 8 }),
+    });
+    assert.equal(response.status, 200);
+  } finally {
+    await firstServer.close();
+  }
+
+  const secondServer = await bootServer({ persistencePath });
+  try {
+    const response = await fetch(`${secondServer.baseUrl}/api/state`);
+    assert.equal(response.status, 200);
+    const state = await response.json();
+    assert.equal(state.orders.length, 1);
+    assert.equal(state.orders[0].customerName, 'Persist');
+    assert.equal(state.orders[0].pickupPoint, 'Pickup zone A');
+    assert.equal(state.venue.pickupPoint, 'Pickup zone C');
+    assert.equal(state.venue.averagePrepMinutes, 8);
+  } finally {
+    await secondServer.close();
   }
 });
