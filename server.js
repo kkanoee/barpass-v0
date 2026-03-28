@@ -133,6 +133,6 @@ function statusForError(error) {
 if (process.argv[1] === __filename) {
   const port = Number(process.env.PORT) || 4173;
   startServer({ port }).then(() => {
-    console.log(`BarPass shared alpha listening on http://127.0.0.1:${port}`);
+    console.log(`BarPass shared alpha listening on port ${port} (local: http://127.0.0.1:${port})`);
   });
 }

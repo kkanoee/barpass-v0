@@ -5,14 +5,16 @@ import path from 'node:path';
 import { JSDOM } from 'jsdom';
 
 const root = path.resolve(path.dirname(new URL(import.meta.url).pathname), '..');
-const html = await fs.readFile(path.join(root, 'index.html'), 'utf8');
+const rawHtml = await fs.readFile(path.join(root, 'index.html'), 'utf8');
+const html = rawHtml
+  .replace(/<link rel="stylesheet" href="\.\/app\.css"\s*\/>/i, '')
+  .replace(/<script src="\.\/app\.js" type="module"><\/script>/i, '');
 const script = await fs.readFile(path.join(root, 'app.js'), 'utf8');
 
 async function boot() {
   const dom = new JSDOM(html, {
     url: 'http://localhost:4173/',
     runScripts: 'dangerously',
-    resources: 'usable',
     beforeParse(window) {
       class FakeChannel {
         addEventListener() {}

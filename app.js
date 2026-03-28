@@ -4,8 +4,8 @@ const LOCAL_CHANNEL_NAME = 'barpass-v0';
 const workflow = ['queued', 'preparing', 'ready', 'completed'];
 
 const workflowLabels = {
-  queued: 'En file',
-  preparing: 'En préparation',
+  queued: 'Reçue',
+  preparing: 'Préparation',
   ready: 'Prête',
   completed: 'Retirée',
 };
@@ -248,7 +248,7 @@ function renderVenue() {
   els.pickupSummary.textContent = `Retrait unique · ${state.venue.pickupPoint}`;
   els.pickupLabel.textContent = state.venue.pickupPoint;
   els.avgWaitLabel.textContent = `${wait} min`;
-  const modeLabel = runtime.mode === 'remote' ? 'Alpha partagée' : 'Démo locale';
+  const modeLabel = runtime.mode === 'remote' ? 'Mode partagé' : 'Mode local';
   els.servicePill.textContent = `${state.venue.serviceOpen ? 'Service ouvert' : 'Service fermé'} · ${modeLabel}`;
   els.servicePill.className = `badge ${state.venue.serviceOpen ? 'success' : 'warning'}`;
 }
@@ -379,7 +379,7 @@ async function checkout() {
     els.checkoutName.value = customerName;
     els.checkoutNote.value = '';
     render();
-    showToast(`Commande #${order.sequence} payée. Retrait à ${order.pickupPoint}.`);
+    showToast(`Commande #${order.sequence} validée. Retrait à ${order.pickupPoint}.`);
   } catch (error) {
     showToast(error.message || 'Impossible de créer la commande.');
   }
@@ -494,17 +494,17 @@ function renderBar() {
   els.metricReady.textContent = String(readyOrders.length);
   els.metricRevenue.textContent = formatEuros(revenue);
 
-  renderOrderColumn(els.ordersQueued, state.orders.filter((order) => order.status === 'queued'), 'Commencer');
-  renderOrderColumn(els.ordersPreparing, state.orders.filter((order) => order.status === 'preparing'), 'Marquer prête');
-  renderOrderColumn(els.ordersReady, state.orders.filter((order) => order.status === 'ready'), 'Commande retirée');
-  renderOrderColumn(els.ordersCompleted, state.orders.filter((order) => order.status === 'completed').slice(0, 6), null);
+  renderOrderColumn(els.ordersQueued, state.orders.filter((order) => order.status === 'queued'), 'Lancer', 'Commandes reçues, pas encore prises en charge.');
+  renderOrderColumn(els.ordersPreparing, state.orders.filter((order) => order.status === 'preparing'), 'Marquer prête', 'Commandes en cours de préparation.');
+  renderOrderColumn(els.ordersReady, state.orders.filter((order) => order.status === 'ready'), 'Marquer retirée', 'Commandes prêtes au retrait.');
+  renderOrderColumn(els.ordersCompleted, state.orders.filter((order) => order.status === 'completed').slice(0, 6), null, 'Dernières commandes terminées.');
 }
 
-function renderOrderColumn(container, orders, actionLabel) {
+function renderOrderColumn(container, orders, actionLabel, emptyLabel) {
   container.innerHTML = '';
 
   if (!orders.length) {
-    container.innerHTML = '<div class="empty-state">Aucune commande ici.</div>';
+    container.innerHTML = `<div class="empty-state">${escapeHtml(emptyLabel || 'Aucune commande ici.')}</div>`;
     return;
   }
 
@@ -514,12 +514,13 @@ function renderOrderColumn(container, orders, actionLabel) {
     card.innerHTML = `
       <div class="order-card-head">
         <div>
-          <strong>#${order.sequence}</strong>
+          <strong>Commande #${order.sequence}</strong>
           <div class="muted">${escapeHtml(order.customerName)} · ${formatTime(order.createdAt)}</div>
         </div>
         <span class="badge">${workflowLabels[order.status]}</span>
       </div>
       <div class="order-tags">
+        <span class="badge subtle">${order.items.length} article${order.items.length > 1 ? 's' : ''}</span>
         <span class="badge subtle">${escapeHtml(order.pickupPoint)}</span>
         <span class="badge subtle">${formatEuros(order.totalCents)}</span>
       </div>
@@ -543,7 +544,7 @@ function renderOrderColumn(container, orders, actionLabel) {
       if (order.status !== 'completed') {
         const cancelButton = document.createElement('button');
         cancelButton.className = 'secondary-button';
-        cancelButton.textContent = 'Revenir en file';
+        cancelButton.textContent = previousActionLabel(order.status);
         cancelButton.disabled = order.status === 'queued';
         cancelButton.addEventListener('click', () => updateOrderStatus(order.id, 'previous'));
         actions.appendChild(cancelButton);
@@ -673,7 +674,7 @@ async function resetDemo() {
       saveLocalState();
       render();
     }
-    showToast(runtime.mode === 'remote' ? 'Alpha partagée réinitialisée.' : 'Démo BarPass réinitialisée.');
+    showToast(runtime.mode === 'remote' ? 'Mode partagé réinitialisé.' : 'Mode local réinitialisé.');
   } catch (error) {
     showToast(error.message || 'Impossible de réinitialiser.');
   }
@@ -693,10 +694,16 @@ function cartTotalCents() {
 }
 
 function timelineDescription(step, order) {
-  if (step === 'queued') return 'Commande enregistrée et payée.';
-  if (step === 'preparing') return 'Le bar traite la commande.';
+  if (step === 'queued') return 'Commande enregistrée et validée.';
+  if (step === 'preparing') return 'Le bar prépare la commande.';
   if (step === 'ready') return `Retrait à ${order.pickupPoint}.`;
   return 'Commande retirée au comptoir.';
+}
+
+function previousActionLabel(status) {
+  if (status === 'ready') return 'Revenir en préparation';
+  if (status === 'preparing') return 'Revenir en reçues';
+  return 'Étape précédente';
 }
 
 async function fetchJson(url, options = {}) {
