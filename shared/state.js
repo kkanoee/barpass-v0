@@ -150,31 +150,31 @@ export function createStore(initialState = createSeedState(), options = {}) {
       };
     });
 
-    state.lastSequence += 1;
-    const sequence = state.lastSequence;
-    const createdAt = Date.now();
-    const order = {
-      id: globalThis.crypto?.randomUUID?.() || `order-${sequence}-${createdAt}`,
-      sequence,
-      customerName: sanitizeText(customerName, 40) || 'Client',
-      pickupPoint: state.venue.pickupPoint,
-      status: 'queued',
-      note: sanitizeText(note, 120),
-      createdAt,
-      updatedAt: createdAt,
-      estimateMinutes: estimateWaitMinutes(state) + state.venue.averagePrepMinutes,
-      totalCents: normalizedCart.reduce((sum, entry) => sum + entry.quantity * (entry.item.priceCents + entry.option.priceDeltaCents), 0),
-      items: normalizedCart.map((entry) => ({
-        itemId: entry.item.id,
-        itemName: entry.item.name,
-        optionId: entry.option.id,
-        optionLabel: entry.option.label,
-        quantity: entry.quantity,
-        unitPriceCents: entry.item.priceCents + entry.option.priceDeltaCents,
-      })),
-    };
-
     return applyMutation(() => {
+      state.lastSequence += 1;
+      const sequence = state.lastSequence;
+      const createdAt = Date.now();
+      const order = {
+        id: globalThis.crypto?.randomUUID?.() || `order-${sequence}-${createdAt}`,
+        sequence,
+        customerName: sanitizeText(customerName, 40) || 'Client',
+        pickupPoint: state.venue.pickupPoint,
+        status: 'queued',
+        note: sanitizeText(note, 120),
+        createdAt,
+        updatedAt: createdAt,
+        estimateMinutes: estimateWaitMinutes(state) + state.venue.averagePrepMinutes,
+        totalCents: normalizedCart.reduce((sum, entry) => sum + entry.quantity * (entry.item.priceCents + entry.option.priceDeltaCents), 0),
+        items: normalizedCart.map((entry) => ({
+          itemId: entry.item.id,
+          itemName: entry.item.name,
+          optionId: entry.option.id,
+          optionLabel: entry.option.label,
+          quantity: entry.quantity,
+          unitPriceCents: entry.item.priceCents + entry.option.priceDeltaCents,
+        })),
+      };
+
       state.orders.unshift(order);
       return { order: cloneState(order), state: getState() };
     });
