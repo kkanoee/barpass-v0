@@ -17,6 +17,7 @@ export function createSeedState() {
         name: 'Lager pression',
         description: 'Le choix le plus rapide à servir pendant le rush.',
         category: 'Bière',
+        productType: 'glass',
         priceCents: 700,
         available: true,
         options: [
@@ -29,6 +30,7 @@ export function createSeedState() {
         name: 'Spritz',
         description: 'Cocktail simple à fort débit, pensé V0.',
         category: 'Cocktail',
+        productType: 'glass',
         priceCents: 1100,
         available: true,
         options: [
@@ -41,6 +43,7 @@ export function createSeedState() {
         name: 'Gin tonic',
         description: 'Option courte, compatible avec un bar à cadence élevée.',
         category: 'Cocktail',
+        productType: 'glass',
         priceCents: 1200,
         available: true,
         options: [
@@ -49,10 +52,37 @@ export function createSeedState() {
         ],
       },
       {
+        id: 'vodka-bottle',
+        name: 'Bouteille vodka',
+        description: 'Format groupe, pensé pour une validation rapide sur mobile.',
+        category: 'Bouteille',
+        productType: 'bottle',
+        priceCents: 9000,
+        available: true,
+        options: [
+          { id: 'standard-pack', label: 'Standard + soft 1 + soft 2', priceDeltaCents: 0 },
+          { id: 'premium-sparkler', label: 'Premium + scintillant', priceDeltaCents: 2500 },
+        ],
+      },
+      {
+        id: 'champagne-bottle',
+        name: 'Champagne',
+        description: 'Version bouteille pour commandes de table ou groupe premium.',
+        category: 'Bouteille',
+        productType: 'bottle',
+        priceCents: 12000,
+        available: true,
+        options: [
+          { id: 'standard-4', label: 'Standard · 4 coupes', priceDeltaCents: 0 },
+          { id: 'magnum-8', label: 'Magnum · 8 coupes', priceDeltaCents: 5500 },
+        ],
+      },
+      {
         id: 'soft-cola',
         name: 'Soft cola',
         description: 'Commande rapide, utile pour garder le flux fluide.',
         category: 'Soft',
+        productType: 'soft',
         priceCents: 450,
         available: true,
         options: [

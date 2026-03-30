@@ -49,11 +49,26 @@ Le repo couvre maintenant deux usages :
 ## Choix produit figés à ce stade
 
 - un seul point de retrait
-- pas d’authentification
+- pas d’authentification obligatoire, mode invité prioritaire
 - pas de vrai PSP
 - pas de multi-bar
 - pas de multi-établissements
 - backend volontairement léger pour l’alpha
+- tunnel client mobile-first pensé pour une commande rapide en boîte
+
+## Variante de cadrage issue du PDF de travail
+
+Le repo embarque désormais une traduction resserrée du flow PDF sous le nom `v0PDF`.
+
+Référence :
+- `docs/spec-v0pdf-mobile.md`
+
+Cette variante sert à tester un parcours mobile réaliste sans élargir le scope au niveau V1 :
+- entrée QR / lien direct / invité
+- carte mobile courte
+- filtres rapides verres / bouteilles / softs
+- bouteille et verre comme branches de commande simples
+- panier, paiement, suivi, retrait
 
 ## Stack
 

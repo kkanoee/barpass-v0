@@ -23,6 +23,7 @@ test('shared alpha exposes state and creates shared orders', async () => {
     assert.equal(stateResponse.status, 200);
     const initialState = await stateResponse.json();
     assert.equal(initialState.orders.length, 0);
+    assert.ok(initialState.menu.some((item) => item.id === 'vodka-bottle'));
 
     const createResponse = await fetch(`${server.baseUrl}/api/orders`, {
       method: 'POST',
@@ -39,6 +40,28 @@ test('shared alpha exposes state and creates shared orders', async () => {
     assert.equal(created.order.customerName, 'Alice');
     assert.equal(created.state.orders.length, 1);
     assert.equal(created.state.orders[0].status, 'queued');
+  } finally {
+    await server.close();
+  }
+});
+
+test('shared alpha supports bottle orders for the v0PDF mobile flow', async () => {
+  const server = await bootServer();
+  try {
+    const createResponse = await fetch(`${server.baseUrl}/api/orders`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        customerName: 'Bottle guest',
+        note: '',
+        cart: [{ itemId: 'vodka-bottle', optionId: 'standard-pack', quantity: 1 }],
+      }),
+    });
+
+    assert.equal(createResponse.status, 201);
+    const created = await createResponse.json();
+    assert.equal(created.order.items[0].itemId, 'vodka-bottle');
+    assert.match(created.order.items[0].itemName, /Vodka|bouteille/i);
   } finally {
     await server.close();
   }

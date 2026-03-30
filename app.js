@@ -24,6 +24,7 @@ function createSeedState() {
         name: 'Lager pression',
         description: 'Le choix le plus rapide à servir pendant le rush.',
         category: 'Bière',
+        productType: 'glass',
         priceCents: 700,
         available: true,
         options: [
@@ -36,6 +37,7 @@ function createSeedState() {
         name: 'Spritz',
         description: 'Cocktail simple à fort débit, pensé V0.',
         category: 'Cocktail',
+        productType: 'glass',
         priceCents: 1100,
         available: true,
         options: [
@@ -48,6 +50,7 @@ function createSeedState() {
         name: 'Gin tonic',
         description: 'Option courte, compatible avec un bar à cadence élevée.',
         category: 'Cocktail',
+        productType: 'glass',
         priceCents: 1200,
         available: true,
         options: [
@@ -56,10 +59,37 @@ function createSeedState() {
         ],
       },
       {
+        id: 'vodka-bottle',
+        name: 'Bouteille vodka',
+        description: 'Format groupe, pensé pour une validation rapide sur mobile.',
+        category: 'Bouteille',
+        productType: 'bottle',
+        priceCents: 9000,
+        available: true,
+        options: [
+          { id: 'standard-pack', label: 'Standard + soft 1 + soft 2', priceDeltaCents: 0 },
+          { id: 'premium-sparkler', label: 'Premium + scintillant', priceDeltaCents: 2500 },
+        ],
+      },
+      {
+        id: 'champagne-bottle',
+        name: 'Champagne',
+        description: 'Version bouteille pour commandes de table ou groupe premium.',
+        category: 'Bouteille',
+        productType: 'bottle',
+        priceCents: 12000,
+        available: true,
+        options: [
+          { id: 'standard-4', label: 'Standard · 4 coupes', priceDeltaCents: 0 },
+          { id: 'magnum-8', label: 'Magnum · 8 coupes', priceDeltaCents: 5500 },
+        ],
+      },
+      {
         id: 'soft-cola',
         name: 'Soft cola',
         description: 'Commande rapide, utile pour garder le flux fluide.',
         category: 'Soft',
+        productType: 'soft',
         priceCents: 450,
         available: true,
         options: [
@@ -82,6 +112,9 @@ const ui = {
   cart: [],
   activeView: 'client',
   toastTimer: null,
+  mobileEntryMode: null,
+  mobileFlowStarted: false,
+  menuFilter: 'all',
 };
 
 const runtime = {
@@ -115,6 +148,15 @@ const els = {
   ordersReady: document.getElementById('orders-ready'),
   ordersCompleted: document.getElementById('orders-completed'),
   servicePill: document.getElementById('service-pill'),
+  mobileEntry: document.getElementById('mobile-entry'),
+  mobileFlow: document.getElementById('mobile-flow'),
+  mobileStartOrder: document.getElementById('mobile-start-order'),
+  mobileStartGuest: document.getElementById('mobile-start-guest'),
+  mobileBackToEntry: document.getElementById('mobile-back-to-entry'),
+  mobileContextLabel: document.getElementById('mobile-context-label'),
+  mobileFlowTitle: document.getElementById('mobile-flow-title'),
+  mobileStepper: document.getElementById('mobile-stepper'),
+  filterButtons: [...document.querySelectorAll('[data-filter]')],
   settingsVenueName: document.getElementById('settings-venue-name'),
   settingsPickupPoint: document.getElementById('settings-pickup-point'),
   settingsPrepMinutes: document.getElementById('settings-prep-minutes'),
@@ -136,6 +178,13 @@ async function bootstrap() {
 function bindEvents() {
   document.querySelectorAll('.tab').forEach((button) => {
     button.addEventListener('click', () => setView(button.dataset.view));
+  });
+
+  els.mobileStartOrder.addEventListener('click', () => startMobileFlow('scan'));
+  els.mobileStartGuest.addEventListener('click', () => startMobileFlow('guest'));
+  els.mobileBackToEntry.addEventListener('click', resetMobileFlow);
+  els.filterButtons.forEach((button) => {
+    button.addEventListener('click', () => setMenuFilter(button.dataset.filter || 'all'));
   });
 
   els.checkoutButton.addEventListener('click', checkout);
@@ -233,8 +282,34 @@ function setView(view) {
   });
 }
 
+function startMobileFlow(mode) {
+  ui.mobileEntryMode = mode;
+  ui.mobileFlowStarted = true;
+  renderMobileFlow();
+  renderMenu();
+  renderCart();
+  renderCurrentOrder();
+}
+
+function resetMobileFlow() {
+  ui.mobileEntryMode = null;
+  ui.mobileFlowStarted = false;
+  ui.menuFilter = 'all';
+  renderMobileFlow();
+  renderMenu();
+}
+
+function setMenuFilter(filter) {
+  ui.menuFilter = filter;
+  els.filterButtons.forEach((button) => {
+    button.classList.toggle('active', button.dataset.filter === filter);
+  });
+  renderMenu();
+}
+
 function render() {
   renderVenue();
+  renderMobileFlow();
   renderMenu();
   renderCart();
   renderCurrentOrder();
@@ -253,15 +328,60 @@ function renderVenue() {
   els.servicePill.className = `badge ${state.venue.serviceOpen ? 'success' : 'warning'}`;
 }
 
+function renderMobileFlow() {
+  const lastOrderId = localStorage.getItem(LAST_ORDER_KEY);
+  const currentOrder = state.orders.find((entry) => entry.id === lastOrderId);
+  const shouldShowFlow = ui.mobileFlowStarted || ui.cart.length > 0 || Boolean(currentOrder);
+  els.mobileEntry.hidden = shouldShowFlow;
+  els.mobileFlow.hidden = !shouldShowFlow;
+
+  const modeLabel = ui.mobileEntryMode === 'scan'
+    ? 'Entrée QR / lien direct'
+    : ui.mobileEntryMode === 'guest'
+      ? 'Mode invité · tunnel express'
+      : 'Tunnel mobile prêt à commander';
+  els.mobileContextLabel.textContent = modeLabel;
+
+  const stage = currentOrder
+    ? 'tracking'
+    : ui.cart.length
+      ? 'cart'
+      : 'menu';
+  const title = stage === 'tracking'
+    ? 'Suivez votre commande'
+    : stage === 'cart'
+      ? 'Validez le panier'
+      : 'Choisissez votre commande';
+  els.mobileFlowTitle.textContent = title;
+
+  const steps = [...els.mobileStepper.querySelectorAll('.mobile-step')];
+  steps.forEach((step, index) => {
+    const target = stage === 'tracking' ? 2 : stage === 'cart' ? 1 : 0;
+    step.classList.toggle('active', index === target);
+  });
+
+  els.filterButtons.forEach((button) => {
+    button.classList.toggle('active', button.dataset.filter === ui.menuFilter);
+  });
+}
+
 function renderMenu() {
   els.menuList.innerHTML = '';
-  state.menu.forEach((item) => {
+  const visibleItems = state.menu.filter((item) => ui.menuFilter === 'all' || item.productType === ui.menuFilter);
+
+  if (!visibleItems.length) {
+    els.menuList.innerHTML = '<div class="empty-state">Aucun produit ne correspond à ce filtre.</div>';
+    return;
+  }
+
+  visibleItems.forEach((item) => {
     const node = els.menuItemTemplate.content.firstElementChild.cloneNode(true);
+    node.dataset.productType = item.productType || 'glass';
     node.querySelector('.menu-title').textContent = item.name;
     node.querySelector('.menu-description').textContent = item.description;
     node.querySelector('.menu-price').textContent = formatEuros(item.priceCents);
     node.querySelector('.menu-category').textContent = item.category;
-    node.querySelector('.menu-stock').textContent = item.available ? 'Disponible' : 'Indisponible';
+    node.querySelector('.menu-stock').textContent = item.available ? productTypeLabel(item.productType) : 'Indisponible';
 
     const select = node.querySelector('.menu-options');
     item.options.forEach((option) => {
@@ -301,6 +421,8 @@ function addToCart(itemId, optionId) {
     ui.cart.push({ itemId: item.id, optionId: option.id, quantity: 1 });
   }
 
+  ui.mobileFlowStarted = true;
+  renderMobileFlow();
   renderCart();
   showToast(`${item.name} ajouté au panier.`);
 }
@@ -336,6 +458,7 @@ function renderCart() {
     `;
     row.querySelector('.link-button').addEventListener('click', () => {
       ui.cart.splice(index, 1);
+      renderMobileFlow();
       renderCart();
     });
     els.cartItems.appendChild(row);
@@ -663,6 +786,9 @@ async function toggleAvailability(itemId) {
 
 async function resetDemo() {
   ui.cart = [];
+  ui.mobileFlowStarted = false;
+  ui.mobileEntryMode = null;
+  ui.menuFilter = 'all';
   localStorage.removeItem(LAST_ORDER_KEY);
 
   try {
@@ -698,6 +824,12 @@ function timelineDescription(step, order) {
   if (step === 'preparing') return 'Le bar prépare la commande.';
   if (step === 'ready') return `Retrait à ${order.pickupPoint}.`;
   return 'Commande retirée au comptoir.';
+}
+
+function productTypeLabel(productType) {
+  if (productType === 'bottle') return 'Bouteille';
+  if (productType === 'soft') return 'Soft';
+  return 'Verre';
 }
 
 function previousActionLabel(status) {

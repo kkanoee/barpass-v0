@@ -36,9 +36,21 @@ async function boot() {
   return dom;
 }
 
-test('client can add to cart and create an order', async () => {
+function enterGuestFlow(document) {
+  document.getElementById('mobile-start-guest').click();
+}
+
+test('client can enter guest flow, add to cart and create an order', async () => {
   const dom = await boot();
   const { document, localStorage } = dom.window;
+
+  assert.equal(document.getElementById('mobile-entry').hidden, false);
+  assert.equal(document.getElementById('mobile-flow').hidden, true);
+
+  enterGuestFlow(document);
+
+  assert.equal(document.getElementById('mobile-entry').hidden, true);
+  assert.equal(document.getElementById('mobile-flow').hidden, false);
 
   const addButtons = [...document.querySelectorAll('.add-to-cart-button')];
   assert.ok(addButtons.length >= 1);
@@ -54,12 +66,35 @@ test('client can add to cart and create an order', async () => {
   assert.equal(state.orders[0].customerName, 'Kano');
   assert.equal(state.orders[0].status, 'queued');
   assert.ok(localStorage.getItem('barpass-v0-last-order'));
+  assert.match(document.getElementById('current-order').textContent, /Commande #1/);
+});
+
+test('mobile flow can filter bottle products and add a bottle order', async () => {
+  const dom = await boot();
+  const { document, localStorage } = dom.window;
+
+  enterGuestFlow(document);
+  document.querySelector('[data-filter="bottle"]').click();
+
+  const visibleCards = [...document.querySelectorAll('.menu-card')]
+    .filter((card) => !card.classList.contains('hidden'));
+  assert.ok(visibleCards.length >= 1);
+  assert.match(visibleCards[0].textContent, /Bouteille|Champagne|Vodka/i);
+
+  visibleCards[0].querySelector('.add-to-cart-button').click();
+  document.getElementById('checkout-name').value = 'Bottle';
+  document.getElementById('checkout-button').click();
+
+  const state = JSON.parse(localStorage.getItem('barpass-v0-state'));
+  assert.equal(state.orders.length, 1);
+  assert.equal(state.orders[0].items[0].itemId, 'vodka-bottle');
 });
 
 test('bar can advance an order through workflow', async () => {
   const dom = await boot();
   const { document, localStorage } = dom.window;
 
+  enterGuestFlow(document);
   document.querySelector('.add-to-cart-button').click();
   document.getElementById('checkout-name').value = 'Bar flow';
   document.getElementById('checkout-button').click();
@@ -91,6 +126,7 @@ test('pilotage can close service and toggle stock without mutating an existing o
   const dom = await boot();
   const { document, localStorage } = dom.window;
 
+  enterGuestFlow(document);
   document.querySelector('.add-to-cart-button').click();
   document.getElementById('checkout-name').value = 'Ops';
   document.getElementById('checkout-button').click();

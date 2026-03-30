@@ -28,72 +28,124 @@
 
       <main>
         <section class="view active" id="view-client">
-          <div class="grid two-col">
-            <div class="panel stack-gap">
-              <div class="panel-head">
-                <div>
-                  <h2>Commande</h2>
-                  <p class="muted">Choisissez une boisson puis validez la commande.</p>
-                </div>
-                <div id="service-pill" class="badge">Service ouvert</div>
-              </div>
-
-              <div class="inline-info">
-                <div class="info-card">
-                  <span class="info-label">Point de retrait</span>
-                  <strong id="pickup-label">Pickup zone A</strong>
-                </div>
-                <div class="info-card">
-                  <span class="info-label">Attente moyenne</span>
-                  <strong id="avg-wait-label">6 min</strong>
-                </div>
-              </div>
-
-              <div id="menu-list" class="menu-list"></div>
-            </div>
-
-            <aside class="panel stack-gap sticky">
-              <div class="panel-head">
-                <div>
-                  <h2>Panier</h2>
-                  <p class="muted">La commande est envoyée au bar après validation.</p>
-                </div>
-              </div>
-
-              <div id="cart-empty" class="empty-state">
-                Rien dans le panier.
-              </div>
-              <div id="cart-items" class="stack-gap"></div>
-              <div id="cart-summary" class="cart-summary hidden">
-                <div class="summary-row">
-                  <span>Sous-total</span>
-                  <strong id="cart-total">0,00 €</strong>
-                </div>
-                <label class="field">
-                  <span>Nom / alias</span>
-                  <input id="checkout-name" type="text" maxlength="40" placeholder="Ex. Kano" />
-                </label>
-                <label class="field">
-                  <span>Note de commande</span>
-                  <textarea id="checkout-note" rows="3" maxlength="120" placeholder="Ex. Sans glaçons sur le soft"></textarea>
-                </label>
-                <button id="checkout-button" class="primary-button">Payer et commander</button>
-              </div>
-            </aside>
-          </div>
-
-          <section class="panel stack-gap current-order-panel">
-            <div class="panel-head">
+          <section id="mobile-entry" class="panel stack-gap mobile-entry-panel">
+            <div class="mobile-hero">
               <div>
-                <h2>Suivi</h2>
-                <p class="muted">Statut de la commande et point de retrait.</p>
+                <p class="eyebrow-mobile">v0PDF · mobile-first</p>
+                <h2>Commande en boîte, pensée pour le téléphone</h2>
+                <p class="muted">Scannez, choisissez, payez, suivez puis récupérez votre commande au bar sans casser votre soirée.</p>
+              </div>
+              <div id="service-pill" class="badge success">Service ouvert</div>
+            </div>
+
+            <div class="inline-info mobile-entry-info">
+              <div class="info-card">
+                <span class="info-label">Point de retrait</span>
+                <strong id="pickup-label">Pickup zone A</strong>
+              </div>
+              <div class="info-card">
+                <span class="info-label">Attente moyenne</span>
+                <strong id="avg-wait-label">6 min</strong>
               </div>
             </div>
-            <div id="current-order-empty" class="empty-state">
-              Aucune commande en cours sur cet appareil.
+
+            <div class="mobile-entry-actions">
+              <button id="mobile-start-order" class="primary-button">Commander maintenant</button>
+              <button id="mobile-start-guest" class="secondary-button">Continuer en invité</button>
             </div>
-            <div id="current-order" class="hidden"></div>
+
+            <div class="mobile-entry-notes">
+              <span class="badge subtle">QR / lien direct</span>
+              <span class="badge subtle">Paiement mobile</span>
+              <span class="badge subtle">Retrait rapide</span>
+            </div>
           </section>
+
+          <div id="mobile-flow" class="stack-gap" hidden>
+            <section class="panel stack-gap mobile-flow-shell">
+              <div class="mobile-flow-head">
+                <div>
+                  <p id="mobile-context-label" class="eyebrow-mobile">Mode invité · tunnel express</p>
+                  <h2 id="mobile-flow-title">Choisissez votre commande</h2>
+                  <p class="muted">Mobile-first, pensé pour un client déjà dans le lieu.</p>
+                </div>
+                <button id="mobile-back-to-entry" class="secondary-button">Changer d’entrée</button>
+              </div>
+
+              <div id="mobile-stepper" class="mobile-stepper" aria-label="Étapes du tunnel mobile">
+                <span class="mobile-step active">1 · Menu</span>
+                <span class="mobile-step">2 · Panier</span>
+                <span class="mobile-step">3 · Suivi</span>
+              </div>
+
+              <div class="mobile-filter-strip" aria-label="Filtres produits">
+                <button class="chip-button active" data-filter="all">Tout</button>
+                <button class="chip-button" data-filter="glass">Verres</button>
+                <button class="chip-button" data-filter="bottle">Bouteilles</button>
+                <button class="chip-button" data-filter="soft">Softs</button>
+              </div>
+            </section>
+
+            <div class="grid two-col mobile-client-grid">
+              <div class="panel stack-gap">
+                <div class="panel-head mobile-panel-head">
+                  <div>
+                    <h2>Carte mobile</h2>
+                    <p class="muted">Peu de choix, grosses actions, ajout rapide.</p>
+                  </div>
+                </div>
+
+                <div id="pickup-summary-card" class="context-banner">
+                  <strong id="pickup-summary">Retrait unique · Pickup zone A</strong>
+                  <span class="muted">Commande mobile dans le lieu, sans création de compte obligatoire.</span>
+                </div>
+
+                <div id="menu-list" class="menu-list"></div>
+              </div>
+
+              <aside class="panel stack-gap sticky mobile-cart-panel">
+                <div class="panel-head">
+                  <div>
+                    <h2>Panier & paiement</h2>
+                    <p class="muted">Tunnel court avant l’envoi au bar.</p>
+                  </div>
+                </div>
+
+                <div id="cart-empty" class="empty-state">
+                  Rien dans le panier.
+                </div>
+                <div id="cart-items" class="stack-gap"></div>
+                <div id="cart-summary" class="cart-summary hidden">
+                  <div class="summary-row">
+                    <span>Sous-total</span>
+                    <strong id="cart-total">0,00 €</strong>
+                  </div>
+                  <label class="field">
+                    <span>Nom / alias</span>
+                    <input id="checkout-name" type="text" maxlength="40" placeholder="Ex. Kano" />
+                  </label>
+                  <label class="field">
+                    <span>Note de commande</span>
+                    <textarea id="checkout-note" rows="3" maxlength="120" placeholder="Ex. Sans glaçons sur le soft"></textarea>
+                  </label>
+                  <button id="checkout-button" class="primary-button">Payer et commander</button>
+                </div>
+              </aside>
+            </div>
+
+            <section class="panel stack-gap current-order-panel">
+              <div class="panel-head">
+                <div>
+                  <h2>Suivi mobile</h2>
+                  <p class="muted">Statut de la commande et point de retrait.</p>
+                </div>
+              </div>
+              <div id="current-order-empty" class="empty-state">
+                Aucune commande en cours sur cet appareil.
+              </div>
+              <div id="current-order" class="hidden"></div>
+            </section>
+          </div>
         </section>
 
         <section class="view" id="view-bar">
